@@ -233,9 +233,27 @@ st.markdown(
 # --- 2. Load Resources (Cached) ---
 @st.cache_resource
 def load_all_resources():
+    # 1. Download the large model from Hugging Face if it doesn't exist
+    model_path = 'job_predictor_model.pkl'
+    
+    # PASTE YOUR HUGGING FACE DIRECT DOWNLOAD LINK HERE:
+    hf_model_url = "https://huggingface.co/Ronit-0/resume-predictor-model/resolve/main/job_predictor_model.pkl"
+    
+    if not os.path.exists(model_path):
+        import requests
+        with st.spinner("Downloading Machine Learning Engine (this only happens once)..."):
+            response = requests.get(hf_model_url, stream=True)
+            if response.status_code == 200:
+                with open(model_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+            else:
+                st.error("Failed to download model from Hugging Face. Check the URL.")
+
+    # 2. Load all models and NLP components
     nlp = spacy.load("en_core_web_sm")
-    rf_model = joblib.load('job_predictor_model.pkl')
-    tfidf = joblib.load('tfidf_vectorizer.pkl')
+    rf_model = joblib.load(model_path)
+    tfidf = joblib.load('tfidf_vectorizer.pkl') # Assuming this one is small enough for GitHub!
     
     skills_df = pd.read_csv('skills_list.csv')
     master_skills = [str(s).lower().strip() for s in skills_df['Skill Name'].unique()]
@@ -247,7 +265,6 @@ def load_all_resources():
     return nlp, matcher, rf_model, tfidf
 
 nlp, matcher, rf_model, tfidf = load_all_resources()
-
 # --- 3. Core Logic Functions ---
 def clean_text(text):
     text = text.lower()
