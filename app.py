@@ -14,8 +14,8 @@ import urllib3
 import plotly.express as px
 import plotly.graph_objects as go
 import base64
-import fitz  # PyMuPDF
-import pytesseract
+import fitz  
+import pytesseract 
 from PIL import Image
 import io
 import os
@@ -40,8 +40,6 @@ hide_st_style = """
                             linear-gradient(135deg, #020617 0%, #0F172A 50%, #020617 100%);
                 background-attachment: fixed;
             }
-            
-            
 
             /* --- CUSTOM PREMIUM NAVIGATION BUTTONS --- */
             div[data-baseweb="tab-list"] {
@@ -217,6 +215,8 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
+
+
 # --- Professional Multi-Color Gradient Background ---
 st.markdown(
     """
@@ -230,18 +230,15 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 2. Load Resources (Cached) ---
+# --- 2. Load Resources (Cached) & DOWNLOAD MODEL ---
 @st.cache_resource
 def load_all_resources():
-    # 1. Download the large model from Hugging Face if it doesn't exist
     model_path = 'job_predictor_model.pkl'
-    
-    # PASTE YOUR HUGGING FACE DIRECT DOWNLOAD LINK HERE:
     hf_model_url = "https://huggingface.co/Ronit-0/resume-predictor-model/resolve/main/job_predictor_model.pkl"
     
+    # Download the model from Hugging Face if not found on the server
     if not os.path.exists(model_path):
-        import requests
-        with st.spinner("Downloading Machine Learning Engine (this only happens once)..."):
+        with st.spinner("Downloading Machine Learning Engine from Hugging Face... (This only happens once)"):
             response = requests.get(hf_model_url, stream=True)
             if response.status_code == 200:
                 with open(model_path, 'wb') as f:
@@ -250,10 +247,10 @@ def load_all_resources():
             else:
                 st.error("Failed to download model from Hugging Face. Check the URL.")
 
-    # 2. Load all models and NLP components
+    # Load resources
     nlp = spacy.load("en_core_web_sm")
     rf_model = joblib.load(model_path)
-    tfidf = joblib.load('tfidf_vectorizer.pkl') # Assuming this one is small enough for GitHub!
+    tfidf = joblib.load('tfidf_vectorizer.pkl')
     
     skills_df = pd.read_csv('skills_list.csv')
     master_skills = [str(s).lower().strip() for s in skills_df['Skill Name'].unique()]
@@ -265,6 +262,7 @@ def load_all_resources():
     return nlp, matcher, rf_model, tfidf
 
 nlp, matcher, rf_model, tfidf = load_all_resources()
+
 # --- 3. Core Logic Functions ---
 def clean_text(text):
     text = text.lower()
@@ -316,6 +314,7 @@ def analyze_tone(text):
 
 def extract_text_from_pdf(file):
     text = ""
+    
     # --- PHASE 1: Try Standard Text Extraction (Fast) ---
     try:
         file.seek(0)
@@ -324,15 +323,16 @@ def extract_text_from_pdf(file):
     except Exception:
         pass
         
+    # If we found a good amount of real text, return it immediately to save time!
     if len(text.strip()) > 50:
         return text
         
-    # --- PHASE 2: Trigger Deep OCR for Flattened/Image PDFs ---
+    # --- PHASE 2: Trigger Deep OCR for Flattened/Image PDFs (Cloud Ready) ---
     try:
-        # NOTE: Native server package called via packages.txt
         file.seek(0)
         pdf_bytes = file.read()
         
+        # Open PDF as a stream of images using PyMuPDF
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         ocr_text = ""
         
@@ -1106,4 +1106,3 @@ with tab_docs:
                     
                     response_placeholder.markdown(final_response)
                 st.session_state.doc_chat_history.append({"role": "assistant", "content": final_response})
-
